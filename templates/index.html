@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Go Kart</title>
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+
+.progress {
+  background: rgba(255,255,255,0.1);
+  justify-content: flex-start;
+  border-radius: 100px;
+  align-items: center;
+  position: relative;
+  padding: 0 5px;
+  display: flex;
+  height: 40px;
+  width: 500px;
+  z-index: 2;
+}
+
+.left-screen {
+	position: absolute;
+	top: 50px;
+	left: 20px;
+}
+
+.right-screen {
+	position: absolute;
+	top: 50px;
+	right: 20px;
+}
+
+.progress-value-green {
+  box-shadow: 0 10px 40px -10px #fff;
+  border-radius: 100px;
+  background: green;
+  height: 30px;
+  width: 0;
+}
+
+.progress-value-red {
+  box-shadow: 0 10px 40px -10px #fff;
+  border-radius: 100px;
+  background: red;
+  height: 30px;
+  width: 0;
+}
+
+.progress-value-blue {
+  box-shadow: 0 10px 40px -10px #fff;
+  border-radius: 100px;
+  background: blue;
+  height: 30px;
+  width: 0;
+}
+
+.video-streaming {
+	position: absolute;
+	top: 22px;
+	left: 0px;
+	right: 0px;
+	z-index: 0;
+}
+
+.output {
+  z-index: 3;
+}
+
+</style>
+</head>
+<body class="w-full">
+
+<div id="output" class="output w-full h-15 bg-red-500 text-center text-white text-bold">Nessun controller connesso</div>
+
+<div class="flex justify-center">
+  <div class="m-4">
+    <div class="progress right-screen">
+		<div id="progress-bar-green" class="progress-value-green" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+	</div>
+  </div>
+</div>
+
+<div class="flex justify-center">
+  <div class="m-4">
+    <div class="progress left-screen">
+		<div id="progress-bar-red" class="progress-value-red" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+	</div>
+  </div>
+</div>
+
+<div class="w-full h-full flex justify-center" id="newpost">
+  <img class="w-full h-screen border video-streaming" id="bg" src="{{ url_for('video_feed') }}">
+</div>
+
+<script>
+  async function updateGamepad() {
+    var gamepads = navigator.getGamepads();
+    var output = document.getElementById('output');
+    //output.innerHTML = '';
+
+    for (var i = 0; i < gamepads.length; i++) {
+      var gamepad = gamepads[i];
+
+      if (gamepad) {
+        //output.innerHTML += '<h2>Gamepad ' + i + '</h2>';
+        //output.innerHTML += '<p>ID: ' + gamepad.id + '</p>';
+
+      //output.innerHTML += '<p>Sterzo: ' + gamepad.axes[0].toFixed(2) + '</p>';
+      //output.innerHTML += '<p>Pulsante 6:' + gamepad.buttons[6].value.toFixed(2) + '</p>';
+      //output.innerHTML += '<p>Pulsante 7:' + gamepad.buttons[7].value.toFixed(2) + '</p>';
+      
+      output.classList.remove("bg-red-500");
+      output.classList.add("bg-green-500");
+      output.innerHTML = "Controller connesso (" + gamepad.id + ")";
+      
+      // Aggiorna la progress bar in base all'intensità del pulsante 6
+      var progressBar = document.getElementById('progress-bar-green');
+      progressBar.style.width = (gamepad.buttons[6].value * 100) + '%';
+      
+      var progressBar = document.getElementById('progress-bar-red');
+      progressBar.style.width = (gamepad.buttons[7].value * 100) + '%';
+      
+      //event.preventDefault();
+      try {
+        // /pulsante/intensità
+        if (gamepad.buttons[6].value.toFixed(2) <= 1.00) {
+          await fetch('/6/' + gamepad.buttons[6].value.toFixed(2));
+          console.log('/6/' + gamepad.buttons[6].value.toFixed(2));
+        }
+        if (gamepad.buttons[7].value.toFixed(2) != 0.00) {
+          await fetch('/7/' + gamepad.buttons[7].value.toFixed(2));
+          console.log('/7/' + gamepad.buttons[7].value.toFixed(2));
+        }
+        if (gamepad.axes[0].toFixed(2) != 0.00) { 
+          await fetch('/0/' + gamepad.axes[0].toFixed(2));
+          console.log('/0/' + gamepad.axes[0].toFixed(2));
+        }
+        console.log("\n");
+      } catch (error) {
+        console.error('Errore durante la chiamata:', error);
+      }
+	  }
+  }
+
+  // Richiama ricorsivamente la funzione per aggiornare l'output
+  requestAnimationFrame(updateGamepad);
+}
+
+// Aggiungi un listener per l'evento di connessione di un gamepad
+window.addEventListener("gamepadconnected", function(e) {
+  console.log("Controller connesso:", e.gamepad.id);
+  updateGamepad();
+});
+</script>
+
+<script>
+let value = 0;
+let max = 1;
+let interval;
+
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'w' && !interval) {
+    interval = setInterval(function() {
+      if (value < max) {
+        var progressBar = document.getElementById('progress-bar-green');
+        progressBar.style.width = (value * 100) + '%';
+        value += 0.1;
+        fetch_async(6, value);
+      } else {
+        clearInterval(interval);
+        interval = null;
+      }
+    }, 50);
+  }
+  if (event.key === 's' && !interval) {
+    interval = setInterval(function() {
+      if (value < max) {
+        var progressBar = document.getElementById('progress-bar-red');
+        progressBar.style.width = (value * 100) + '%';
+        value += 0.1;
+        fetch_async(7, value);
+      } else {
+        clearInterval(interval);
+        interval = null;
+      }
+    }, 50);
+  }
+});
+
+document.addEventListener('keyup', function(event) {
+  if (event.key === 'w') {
+    clearInterval(interval);
+    interval = null;
+    value = 0;
+    var progressBar = document.getElementById('progress-bar-green');
+    progressBar.style.width = (value * 100) + '%';
+    fetch_async(6, value);
+  }
+  if (event.key === 's') {
+    clearInterval(interval);
+    interval = null;
+    value = 0;
+    var progressBar = document.getElementById('progress-bar-red');
+    progressBar.style.width = (value * 100) + '%';
+    fetch_async(7, value);
+  }
+});
+
+async function fetch_async(button, value) {
+  //await fetch('/' + button + '/' + value.toFixed(2));
+  console.log('/' + button + '/' + value.toFixed(2));
+}
+
+</script>
+
+</body>
+</html>
